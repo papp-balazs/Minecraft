@@ -12,7 +12,9 @@ public static class Program
     /// </summary>
     public static void Main()
     {
-        Console.WriteLine("Hello world!");
+        using var game = new Game();
+        game.Init();
+        game.Run();
     }
 
     #endregion
