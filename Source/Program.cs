@@ -5,17 +5,31 @@
 /// </summary>
 public static class Program
 {
-    #region Public Static Methods
+    public const int ExitSuccess = 0;
+    public const int ExitFail = 1;
 
     /// <summary>
     /// The program entry point.
     /// </summary>
-    public static void Main()
+    public static int Main()
     {
         using var game = new Game();
-        game.Init();
-        game.Run();
-    }
 
-    #endregion
-}
+        try
+        {
+            game.Initialize();
+            game.Run();
+        }
+        catch (Exception e)
+        {
+            Console.Error.WriteLine("Fatal error: {0}", e);
+            return ExitFail;
+        }
+        finally
+        {
+            game.Dispose();
+        }
+
+        return ExitSuccess;
+    }
+};

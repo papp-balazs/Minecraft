@@ -13,9 +13,9 @@ public sealed class Game : IDisposable
     #region Public Properties
 
     /// <summary>
-    /// The main game window
+    /// The main game window.
     /// </summary>
-    public IWindow? Window
+    public IWindow? MainWindow
     {
         get;
         private set;
@@ -24,7 +24,7 @@ public sealed class Game : IDisposable
     /// <summary>
     /// The main input context.
     /// </summary>
-    public IInputContext? Input
+    public IInputContext? MainWindowInput
     {
         get;
         private set;
@@ -33,7 +33,7 @@ public sealed class Game : IDisposable
     /// <summary>
     /// The main GPU context.
     /// </summary>
-    public GL? GraphicsContext
+    public GL? MainWindowGraphics
     {
         get;
         private set;
@@ -73,15 +73,23 @@ public sealed class Game : IDisposable
     /// <summary>
     /// Initialize the game.
     /// </summary>
-    public void Init()
+    /// <exception cref="InvalidOperationException">
+    /// Thrown if the instance is already initialized.
+    /// </exception>
+    public void Initialize()
     {
-        var glOptions = GraphicsAPI.Default;
-        glOptions.Version = new(4, 5);
-        glOptions.Profile = ContextProfile.Core;
-        glOptions.Flags = ContextFlags.ForwardCompatible;
+        if (MainWindow != null)
+        {
+            throw new InvalidOperationException("Instance is already initialized.");
+        }
+
+        var graphicsOptions = GraphicsAPI.Default;
+        graphicsOptions.Version = new(4, 5);    
+        graphicsOptions.Profile = ContextProfile.Core;
+        graphicsOptions.Flags = ContextFlags.ForwardCompatible;
 
         var windowOptions = WindowOptions.Default;
-        windowOptions.API = glOptions;
+        windowOptions.API = graphicsOptions;
         windowOptions.Size = new(1280, 720);
         windowOptions.Title = "Minecraft";
         windowOptions.WindowClass = "Minecraft";
@@ -95,20 +103,27 @@ public sealed class Game : IDisposable
         windowOptions.UpdatesPerSecond = 60;
 
 
-        Window = Silk.NET.Windowing.Window.Create(windowOptions);
-        Window.Load += OnWindowLoad;
-        Window.Update += OnWindowUpdate;
-        Window.Render += OnWindowRender;
-        Window.Closing += OnWindowClosing;
+        MainWindow = Window.Create(windowOptions);
+        MainWindow.Load += OnWindowLoad;
+        MainWindow.Update += OnWindowUpdate;
+        MainWindow.Render += OnWindowRender;
+        MainWindow.Closing += OnWindowClosing;
     }
 
     /// <summary>
     /// Run the game.
     /// </summary>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown if the main game window does not exist.
+    /// </exception>
     public void Run()
     {
+        if (MainWindow == null)
+        {
+            throw new InvalidOperationException("Instance is not initialized.");
+        }
 
-        Window?.Run();
+        MainWindow.Run();
     }
 
     /// <summary>
@@ -124,54 +139,81 @@ public sealed class Game : IDisposable
 
     #region Private Methods
 
+    /// <summary>
+    /// The callback for when the main window is loaded.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown if the main game window does not exist.
+    /// </exception>
     private void OnWindowLoad()
     {
-        if (Window == null)
+        if (MainWindow == null)
         {
             throw new InvalidOperationException("Main game window does not exist.");
         }
 
-        Input = Window.CreateInput();
-        GraphicsContext = Window.CreateOpenGL();
+        MainWindowInput = MainWindow.CreateInput();
+        MainWindowGraphics = MainWindow.CreateOpenGL();
 
-        Window.Center();
-        Window.IsVisible = true;
+        MainWindow.Center();
+        MainWindow.IsVisible = true;
     }
 
+    /// <summary>
+    /// The callback for when the main window is updated.
+    /// </summary>
+    /// <param name="delta">
+    /// The time, in fractional seconds since the last update.
+    /// </param>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown if the main game window or its input does not exist.
+    /// </exception>
     private void OnWindowUpdate(double delta)
     {
-        var kbs = Input?.Keyboards ?? Array.Empty<IKeyboard>();
+        if (MainWindow == null)
+        {
+            throw new InvalidOperationException("Main game window does not exist.");
+        }
 
-        foreach (var kb in kbs)
+        if (MainWindowInput == null)
+        {
+            throw new InvalidOperationException("Main game window input is null.");
+        }
+
+        foreach (var kb in MainWindowInput.Keyboards)
         {
             if (kb.IsKeyPressed(Key.Escape))
             {
-                Window?.Close();
+                MainWindow.Close();
             }
         }
     }
 
     private void OnWindowRender(double delta)
     {
-        var fbSize = Window?.FramebufferSize;
-
-        if (fbSize != null)
+        if (MainWindow == null)
         {
-            GraphicsContext?.Viewport(fbSize.Value);
+            throw new InvalidOperationException("Main game window does not exist.");
         }
 
-        GraphicsContext?.ClearColor(Color.CornflowerBlue);
-        GraphicsContext?.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
+        if (MainWindowGraphics == null)
+        {
+            throw new InvalidOperationException("Main game window graphics is null.");
+        }
 
-        Window?.SwapBuffers();
+        MainWindowGraphics.Viewport(MainWindow?.FramebufferSize ?? new(0, 0));
+        MainWindowGraphics.ClearColor(Color.CornflowerBlue);
+        MainWindowGraphics.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
+
+        MainWindow?.SwapBuffers();
     }
 
+    /// <summary>
+    /// The callback for when the main window is requesting to close.
+    /// </summary>
     private void OnWindowClosing()
     {
-        GraphicsContext?.Dispose();
-        GraphicsContext = null;
-        Input?.Dispose();
-        Input = null;
+        Dispose();
     }
 
     /// <summary>
@@ -182,14 +224,22 @@ public sealed class Game : IDisposable
     /// </param>
     private void Dispose(bool managed)
     {
-        if (IsDisposed) return;
-        if (managed)
+        if (IsDisposed)
         {
-            Window?.Dispose();
-            Window = null;
+            return;
         }
 
-        IsDisposed = true;
+        if (managed)
+        {
+            MainWindowGraphics?.Dispose();
+            MainWindowGraphics = null;
+            MainWindowInput?.Dispose();
+            MainWindowInput = null;
+            MainWindow?.Dispose();
+            MainWindow = null;
+        }
+
+        IsDisposed = true;  
     }
 
     #endregion
