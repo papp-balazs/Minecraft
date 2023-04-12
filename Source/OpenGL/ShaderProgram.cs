@@ -90,7 +90,7 @@ public class ShaderProgram : IDisposable
                 return null;
             }
 
-            Context.GetShaderInfoLog(ID, out var log);
+            Context.GetProgramInfoLog(ID, out var log);
             
             return log;
         }
