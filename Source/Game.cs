@@ -3,13 +3,27 @@
 using Silk.NET.Input;
 using Silk.NET.OpenGL;
 using Silk.NET.Windowing;
+using SkiaSharp;
 using System.Drawing;
+using System.Reflection;
 
 /// <summary>
 /// The main game state/logic controller.
 /// </summary>
-public sealed class Game : IDisposable
+public class Game : IDisposable
 {
+    #region Private Properties
+
+    private uint vao;
+    private uint vbo;
+    private uint cbo;
+    private uint uvbo;
+    private uint ebo;
+    private uint shader;
+    private uint texture;
+
+    #endregion
+
     #region Public Properties
 
     /// <summary>
@@ -50,13 +64,7 @@ public sealed class Game : IDisposable
 
     #endregion
 
-    #region Public Constructors/Finalizers
-
-    /// <summary>
-    /// Create a new instance.
-    /// </summary>
-    public Game()
-    { }
+    #region Public Constructors/Finalizer
 
     /// <summary>
     /// The finalizer.
@@ -84,6 +92,7 @@ public sealed class Game : IDisposable
         }
 
         var graphicsOptions = GraphicsAPI.Default;
+        graphicsOptions.API = ContextAPI.OpenGL;
         graphicsOptions.Version = new(4, 5);    
         graphicsOptions.Profile = ContextProfile.Core;
         graphicsOptions.Flags = ContextFlags.ForwardCompatible;
@@ -157,6 +166,110 @@ public sealed class Game : IDisposable
 
         MainWindow.Center();
         MainWindow.IsVisible = true;
+
+        vao = MainWindowGraphics.GenVertexArray();
+        MainWindowGraphics.BindVertexArray(vao);
+
+        vbo = MainWindowGraphics.CreateBuffer();
+        MainWindowGraphics.BindBuffer(BufferTargetARB.ArrayBuffer, vbo);
+        MainWindowGraphics.BufferData<float>(BufferTargetARB.ArrayBuffer, new float[]
+        {
+            -0.5f, -0.5f, 0.0f,
+             0.5f, -0.5f, 0.0f,
+            -0.5f,  0.5f, 0.0f,
+             0.5f,  0.5f, 0.0f
+        }, BufferUsageARB.StaticDraw);
+
+        cbo = MainWindowGraphics.CreateBuffer();
+        MainWindowGraphics.BindBuffer(BufferTargetARB.ArrayBuffer, cbo);
+        MainWindowGraphics.BufferData<float>(BufferTargetARB.ArrayBuffer, new float[]
+        {
+            1.0f, 1.0f, 1.0f,
+            1.0f, 1.0f, 1.0f,
+            1.0f, 1.0f, 1.0f,
+            1.0f, 1.0f, 1.0f
+        }, BufferUsageARB.StaticDraw);
+
+        uvbo = MainWindowGraphics.CreateBuffer();
+        MainWindowGraphics.BindBuffer(BufferTargetARB.ArrayBuffer, uvbo);
+        MainWindowGraphics.BufferData<float>(BufferTargetARB.ArrayBuffer, new float[]
+        {
+            0.0f, 1.0f,
+            1.0f, 1.0f,
+            0.0f, 0.0f,
+            1.0f, 0.0f
+        }, BufferUsageARB.StaticDraw);
+
+        ebo = MainWindowGraphics.CreateBuffer();
+        MainWindowGraphics.BindBuffer(BufferTargetARB.ElementArrayBuffer, ebo);
+        MainWindowGraphics.BufferData<uint>(BufferTargetARB.ElementArrayBuffer, new uint[]
+        {
+            0, 1, 2,
+            1, 2, 3
+        }, BufferUsageARB.StaticDraw);
+
+        shader = MainWindowGraphics.CreateProgram();
+        var vertexShader = MainWindowGraphics.CreateShader(ShaderType.VertexShader);
+        var fragmentShader = MainWindowGraphics.CreateShader(ShaderType.FragmentShader);
+
+        MainWindowGraphics.ShaderSource(vertexShader, @"
+#version 450 core
+
+layout (location = 0) in vec3 aPosition;
+layout (location = 1) in vec3 aColor;
+layout (location = 2) in vec2 aUV;
+
+out vec3 vColor;
+out vec2 vUV;
+
+void main() {
+    vColor = aColor;
+    vUV = aUV;
+    gl_Position = vec4(aPosition, 1.0);
+}
+");
+        MainWindowGraphics.ShaderSource(fragmentShader, @"
+#version 450 core
+
+in vec3 vColor;
+in vec2 vUV;
+
+out vec4 fragColor;
+
+uniform sampler2D uTexture;
+
+void main() {
+    fragColor = vec4(texture2D(uTexture, vUV).rgb * vColor.rgb * 1.0, 1.0);
+}
+");
+        
+        MainWindowGraphics.CompileShader(vertexShader);
+        MainWindowGraphics.CompileShader(fragmentShader);
+        MainWindowGraphics.AttachShader(shader, vertexShader);
+        MainWindowGraphics.AttachShader(shader, fragmentShader);
+        MainWindowGraphics.LinkProgram(shader);
+
+        Console.WriteLine(MainWindowGraphics.GetShaderInfoLog(fragmentShader));
+
+        MainWindowGraphics.DeleteShader(vertexShader);
+        MainWindowGraphics.DeleteShader(fragmentShader);
+
+        var assemblyLocation = Path.GetDirectoryName(Path.GetFullPath(Assembly.GetExecutingAssembly().Location));
+        using var stream = File.OpenRead(Path.Combine(assemblyLocation ?? "", "Assets/texture.png"));
+        var img = SKBitmap.Decode(stream);
+
+        stream.Close();
+
+        var imgData = img.Bytes;
+
+        texture = MainWindowGraphics.GenTexture();
+        MainWindowGraphics.ActiveTexture(TextureUnit.Texture0);
+        MainWindowGraphics.BindTexture(TextureTarget.Texture2D, texture);
+        MainWindowGraphics.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
+        MainWindowGraphics.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
+        MainWindowGraphics.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
+        MainWindowGraphics.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
+        MainWindowGraphics.TexImage2D<byte>(TextureTarget.Texture2D, 0, InternalFormat.Rgba, (uint)img.Width, (uint)img.Height, 0, PixelFormat.Bgra, PixelType.UnsignedByte, imgData.AsSpan());
     }
 
     /// <summary>
@@ -205,6 +318,43 @@ public sealed class Game : IDisposable
         MainWindowGraphics.ClearColor(Color.CornflowerBlue);
         MainWindowGraphics.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
+        MainWindowGraphics.Enable(EnableCap.Blend);
+        MainWindowGraphics.BlendEquation(BlendEquationModeEXT.FuncAdd);
+        MainWindowGraphics.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+
+        MainWindowGraphics.BindVertexArray(vao);
+        MainWindowGraphics.UseProgram(shader);
+        MainWindowGraphics.EnableVertexAttribArray(0);
+        MainWindowGraphics.EnableVertexAttribArray(1);
+        MainWindowGraphics.EnableVertexAttribArray(2);
+        MainWindowGraphics.ActiveTexture(TextureUnit.Texture0);
+        MainWindowGraphics.BindTexture(TextureTarget.Texture2D, texture);
+
+        MainWindowGraphics.Uniform1(MainWindowGraphics.GetUniformLocation(shader, "uTexture"), 0);
+        MainWindowGraphics.BindBuffer(BufferTargetARB.ArrayBuffer, vbo);
+        unsafe {
+            MainWindowGraphics.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, 3 * sizeof(float), null);
+        }
+        MainWindowGraphics.BindBuffer(BufferTargetARB.ArrayBuffer, cbo);
+        unsafe
+        {
+            MainWindowGraphics.VertexAttribPointer(1, 3, VertexAttribPointerType.Float, false, 3 * sizeof(float), null);
+        }
+        MainWindowGraphics.BindBuffer(BufferTargetARB.ArrayBuffer, uvbo);
+        unsafe
+        {
+            MainWindowGraphics.VertexAttribPointer(2, 2, VertexAttribPointerType.Float, false, 2 * sizeof(float), null);
+        }
+        MainWindowGraphics.BindBuffer(BufferTargetARB.ElementArrayBuffer, ebo);
+        unsafe {
+            MainWindowGraphics.DrawElements(PrimitiveType.Triangles, 6, DrawElementsType.UnsignedInt, null);
+        }
+        
+        MainWindowGraphics.DisableVertexAttribArray(2);
+        MainWindowGraphics.DisableVertexAttribArray(1);
+        MainWindowGraphics.DisableVertexAttribArray(0);
+        MainWindowGraphics.UseProgram(0);
+
         MainWindow?.SwapBuffers();
     }
 
@@ -235,7 +385,6 @@ public sealed class Game : IDisposable
             MainWindowGraphics = null;
             MainWindowInput?.Dispose();
             MainWindowInput = null;
-            MainWindow?.Dispose();
             MainWindow = null;
         }
 
