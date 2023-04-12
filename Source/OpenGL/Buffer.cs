@@ -340,7 +340,7 @@ public class Buffer : IDisposable
             throw new InvalidOperationException("Cannot upload data to an unbound OpenGL buffer.");
         }
 
-        Context.BufferData<T0>(Target, (nuint)(data.Length * Marshal.SizeOf<T0>()), data, usage);
+        Context.BufferData<T0>(Target, data, usage);
         var err = (ErrorCode)Context.GetError();
 
         if (err != ErrorCode.NoError)
