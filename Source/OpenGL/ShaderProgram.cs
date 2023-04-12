@@ -24,15 +24,11 @@ public class ShaderProgram : IDisposable
     /// <returns>
     /// The new instance.
     /// </returns>
-    public static ShaderProgram FromSources(GL context, string vertex, string fragment)
-    {
-        var program = new ShaderProgram(context);
-
-        return program
+    public static ShaderProgram FromSources(GL context, string vertex, string fragment) =>
+        new ShaderProgram(context)
             .AttachShader(Shader.FromSource(context, ShaderType.VertexShader, vertex))
             .AttachShader(Shader.FromSource(context, ShaderType.FragmentShader, fragment))
             .Link();
-    }
 
     /// <summary>
     /// Create a new instance from the given vertex and fragment shader sources.

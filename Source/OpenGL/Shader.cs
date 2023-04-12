@@ -24,12 +24,8 @@ public class Shader : IDisposable
     /// <returns>
     /// The new instance.
     /// </returns>
-    public static Shader FromSource(GL context, ShaderType type, string source)
-    {
-        var shader = new Shader(context, type);
-
-        return shader.UploadSource(source).Compile();
-    }
+    public static Shader FromSource(GL context, ShaderType type, string source) =>
+        new Shader(context, type).UploadSource(source).Compile();
 
     /// <summary>
     /// Create and compile a new instance from the source code in a file.
