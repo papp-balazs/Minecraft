@@ -94,7 +94,7 @@ public class Game : IDisposable
 
         var graphicsOptions = GraphicsAPI.Default;
         graphicsOptions.API = ContextAPI.OpenGL;
-        graphicsOptions.Version = new(4, 5);    
+        graphicsOptions.Version = new(4, 1);    
         graphicsOptions.Profile = ContextProfile.Core;
         graphicsOptions.Flags = ContextFlags.ForwardCompatible;
 
@@ -213,7 +213,7 @@ public class Game : IDisposable
         }, BufferUsageARB.StaticDraw);
 
         shader = OpenGL.ShaderProgram.FromSources(MainWindowGraphics, @"
-#version 450 core
+#version 410 core
 
 layout (location = 0) in vec3 aPosition;
 layout (location = 1) in vec3 aColor;
@@ -228,7 +228,7 @@ void main() {
     gl_Position = vec4(aPosition, 1.0);
 }
 ", @"
-#version 450 core
+#version 410 core
 
 in vec3 vColor;
 in vec2 vUV;
