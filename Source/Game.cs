@@ -328,26 +328,22 @@ void main() {
         MainWindowGraphics.ActiveTexture(TextureUnit.Texture0);
         MainWindowGraphics.BindTexture(TextureTarget.Texture2D, texture);
         MainWindowGraphics.Uniform1(MainWindowGraphics.GetUniformLocation(shader?.ID ?? 0, "uTexture"), 0);
-        _ = vbo?.Bind();
 
-        unsafe {
-            MainWindowGraphics.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, 3 * sizeof(float), null);
-        }
-        _ = cbo?.Bind();
-        unsafe
-        {
-            MainWindowGraphics.VertexAttribPointer(1, 3, VertexAttribPointerType.Float, false, 3 * sizeof(float), null);
-        }
-        _ = uvbo?.Bind();
-        unsafe
-        {
-            MainWindowGraphics.VertexAttribPointer(2, 2, VertexAttribPointerType.Float, false, 2 * sizeof(float), null);
-        }
+        MainWindowGraphics.VertexAttribFormat(0, 3, VertexAttribType.Float, false, 0);
+        MainWindowGraphics.VertexAttribBinding(0, 0);
+        MainWindowGraphics.BindVertexBuffer(0, vbo?.ID ?? 0, 0, 3 * sizeof(float));
+
+        MainWindowGraphics.VertexAttribFormat(1, 3, VertexAttribType.Float, false, 0);
+        MainWindowGraphics.VertexAttribBinding(1, 1);
+        MainWindowGraphics.BindVertexBuffer(1, cbo?.ID ?? 0, 0, 3 * sizeof(float));
+
+        MainWindowGraphics.VertexAttribFormat(2, 2, VertexAttribType.Float, false, 0);
+        MainWindowGraphics.VertexAttribBinding(2, 2);
+        MainWindowGraphics.BindVertexBuffer(2, uvbo?.ID ?? 0, 0, 2 * sizeof(float));
+
         _ = ebo?.Bind();
-        unsafe {
-            MainWindowGraphics.DrawElements(PrimitiveType.Triangles, 6, DrawElementsType.UnsignedInt, null);
-        }
-        
+        MainWindowGraphics.DrawElements(PrimitiveType.Triangles, 6, DrawElementsType.UnsignedInt, ReadOnlySpan<uint>.Empty);
+
         MainWindowGraphics.DisableVertexAttribArray(2);
         MainWindowGraphics.DisableVertexAttribArray(1);
         MainWindowGraphics.DisableVertexAttribArray(0);
